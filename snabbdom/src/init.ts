@@ -132,10 +132,21 @@ export function init(modules: Array<Partial<Module>>, domApi?: DOMAPI) {
     );
   }
 
+  /**
+   * 
+   * @param childElm 要删除的节点 dom 对象
+   * @param listeners remove 钩子函数 length + 1
+   * @returns 
+   */
   function createRmCb(childElm: Node, listeners: number) {
+    // 使用 rmCb 高阶函数的目的是为了缓存传入的参数，并等 都执行了 remove 钩子函数之后再执行
     return function rmCb() {
+      // --listeners === 0 即所有的钩子函数都执行了 remove 钩子函数
+      // 再执行 dom 删除操作
       if (--listeners === 0) {
+        // 获取当前要删除元素的父元素
         const parent = api.parentNode(childElm) as Node;
+        // 删除 parent 的 childElm节点
         api.removeChild(parent, childElm);
       }
     };
@@ -278,14 +289,25 @@ export function init(modules: Array<Partial<Module>>, domApi?: DOMAPI) {
   }
 
   function invokeDestroyHook(vnode: VNode) {
+    // 获取用户传入的 data
     const data = vnode.data;
+    // 判断 data 是否存在，如果不存在，则什么都不处理
     if (data !== undefined) {
+      // 查看用户是否自定义了 destroy 钩子函数，如果自定义了钩子函数，则将当前 vnode 作为参数传入
       data?.hook?.destroy?.(vnode);
+
+      // 循环遍历 cbs 对象中 destroy 钩子函数数组，依次调用 destroy 数组中的每一个 destroy 钩子函数
       for (let i = 0; i < cbs.destroy.length; ++i) cbs.destroy[i](vnode);
+
+      // 查看 vnode 是否有子元素节点
       if (vnode.children !== undefined) {
+        // 循环遍历子元素节点
         for (let j = 0; j < vnode.children.length; ++j) {
+          // 缓存当前子节点
           const child = vnode.children[j];
+          // 如果当前子节点存在，且不是 字符串
           if (child != null && typeof child !== "string") {
+            // 递归调用 invokeDestroyHook，参数为 当前子节点
             invokeDestroyHook(child);
           }
         }
@@ -293,30 +315,57 @@ export function init(modules: Array<Partial<Module>>, domApi?: DOMAPI) {
     }
   }
 
+  /**
+   * 
+   * @param parentElm 父元素节点
+   * @param vnodes VNode 数组
+   * @param startIdx 开始位置索引
+   * @param endIdx 结束位置索引
+   */
   function removeVnodes(
     parentElm: Node,
     vnodes: VNode[],
     startIdx: number,
     endIdx: number
   ): void {
+    // 如果 startIdx 小于等于 endIdex，循环，直至 startIdx > endIdx
+    // 循环遍历的 vnodes 数组
     for (; startIdx <= endIdx; ++startIdx) {
+
       let listeners: number;
       let rm: () => void;
+
+      // 缓存 ch， 为当前要开始删除的 VNode
       const ch = vnodes[startIdx];
+      // 如果 ch 存在
       if (ch != null) {
+        // 判断 ch 是否是一个 元素节点
+        // 是元素节点
         if (isDef(ch.sel)) {
+          // 调用 invokeDestroyHook 函数处理 当前 VNode
+          // 调用 destroy 钩子函数处理 ch 及 ch 的 children
           invokeDestroyHook(ch);
+          // 给 listeners 赋值为当前钩子函数对象中remove钩子函数的 legnth + 1
           listeners = cbs.remove.length + 1;
+          // 给 rm 函数赋值为 createRmCb，并传入 当前 vnode 对象的 elm，listeners
+          // 返回一个函数，只有当 listeners === 0 的时候再执行删除操作
           rm = createRmCb(ch.elm!, listeners);
+
+          // 循环遍历钩子函数对象中remove钩子函数，调用每一项 remove 钩子函数，传入 当前 vnode 和 rm 函数
           for (let i = 0; i < cbs.remove.length; ++i) cbs.remove[i](ch, rm);
+
+          // 查看当前 vnode 对象的 data 中是否有用户传入的 remove 钩子函数
           const removeHook = ch?.data?.hook?.remove;
+          // 如果用户用户传入了 remove 钩子函数，则调用用户传入的钩子函数
           if (isDef(removeHook)) {
             removeHook(ch, rm);
           } else {
+            // 如果用户没传入，则直接调用 rm 函数
             rm();
           }
         } else {
           // Text node
+          // 不是 VNode 对象，则为 文本节点。从父元素中删除该文本节点
           api.removeChild(parentElm, ch.elm!);
         }
       }

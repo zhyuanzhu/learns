@@ -63,6 +63,7 @@ function insertBefore(
   parentNode.insertBefore(newNode, referenceNode);
 }
 
+// 删除 node 节点的子节点 child
 function removeChild(node: Node, child: Node): void {
   node.removeChild(child);
 }

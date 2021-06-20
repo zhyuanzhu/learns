@@ -272,6 +272,15 @@ export function init(modules: Array<Partial<Module>>, domApi?: DOMAPI) {
     return vnode.elm;
   }
 
+  /**
+   * 
+   * @param parentElm 父元素节点
+   * @param before 
+   * @param vnodes 
+   * @param startIdx 开始节点索引
+   * @param endIdx 结束节点索引
+   * @param insertedVnodeQueue 新插入 VNode 节点队列
+   */
   function addVnodes(
     parentElm: Node,
     before: Node | null,
@@ -280,9 +289,15 @@ export function init(modules: Array<Partial<Module>>, domApi?: DOMAPI) {
     endIdx: number,
     insertedVnodeQueue: VNodeQueue
   ) {
+    // 循环遍历 vnodes
+    // 如果 startIdx > endIdx 则退出循环
     for (; startIdx <= endIdx; ++startIdx) {
+      // 缓存当前的 vnode
       const ch = vnodes[startIdx];
+      // 如果当前 vnode 存在
       if (ch != null) {
+        // createElm(ch, insertedVnodeQueue) ---> ch 的真实 dom 节点
+        // 将 ch 插入到 parentElm 元素的 before 节点之前
         api.insertBefore(parentElm, createElm(ch, insertedVnodeQueue), before);
       }
     }

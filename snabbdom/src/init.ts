@@ -38,15 +38,26 @@ type ArraysOf<T> = {
 
 type ModuleHooks = ArraysOf<Required<Module>>;
 
+/**
+ * 
+ * @param children 
+ * @param beginIdx 
+ * @param endIdx 
+ * @returns 一个对象，
+ */
 function createKeyToOldIdx(
   children: VNode[],
   beginIdx: number,
   endIdx: number
 ): KeyToIndexMap {
+  // 定义 KeyToIndexMap 类型的对象
   const map: KeyToIndexMap = {};
+  // 循环遍历 children
   for (let i = beginIdx; i <= endIdx; ++i) {
+    // 如果 当前项 存在 key 属性
     const key = children[i]?.key;
     if (key !== undefined) {
+      // 将当前项的 key 属性作为键，将当前索引作为值存储起来
       map[key as string] = i;
     }
   }
@@ -387,90 +398,160 @@ export function init(modules: Array<Partial<Module>>, domApi?: DOMAPI) {
     }
   }
 
+  /**
+   * diff 算法的核心
+   * 只比较同级别节点
+   * @param parentElm 
+   * @param oldCh 
+   * @param newCh 
+   * @param insertedVnodeQueue 
+   */
   function updateChildren(
     parentElm: Node,
     oldCh: VNode[],
     newCh: VNode[],
     insertedVnodeQueue: VNodeQueue
   ) {
+    
+    // 新旧开始节点的索引都初始化为 0
     let oldStartIdx = 0;
     let newStartIdx = 0;
+
+    // 旧结束节点索引
     let oldEndIdx = oldCh.length - 1;
+    // 旧节点的开始节点
     let oldStartVnode = oldCh[0];
+    // 旧节点的结束节点
     let oldEndVnode = oldCh[oldEndIdx];
+
+    // 新结束节点的索引
     let newEndIdx = newCh.length - 1;
+    // 新节点的开始节点
     let newStartVnode = newCh[0];
+    // 新节点的结束节点
     let newEndVnode = newCh[newEndIdx];
+
     let oldKeyToIdx: KeyToIndexMap | undefined;
+
     let idxInOld: number;
     let elmToMove: VNode;
+
     let before: any;
 
+    // 如果旧开始节点的索引小于旧结束节点的索引 且 新开始节点的索引小于新结束节点的索引
     while (oldStartIdx <= oldEndIdx && newStartIdx <= newEndIdx) {
+      // 旧开始节点不存在
       if (oldStartVnode == null) {
+        // 递增 oldStartIdx ，并将新值赋值给 oldStartVnode
         oldStartVnode = oldCh[++oldStartIdx]; // Vnode might have been moved left
       } else if (oldEndVnode == null) {
+        // 旧结束节点不存在
+        // 递减 oldEndIdx ，并从 oldCh 中获取旧结束节点
         oldEndVnode = oldCh[--oldEndIdx];
       } else if (newStartVnode == null) {
+        // 新开始节点不存在
+        // 递增 newStartIdx 并从 newCh 中获取 新开始节点
         newStartVnode = newCh[++newStartIdx];
       } else if (newEndVnode == null) {
+        // 旧结束节点不存在
+        // 递减 newEndIdx 并从新节点中获取 新结束节点
         newEndVnode = newCh[--newEndIdx];
       } else if (sameVnode(oldStartVnode, newStartVnode)) {
+        // 如果 新开始节点和旧开始节点相同
+        // 比较 旧开始节点和新开始节点
         patchVnode(oldStartVnode, newStartVnode, insertedVnodeQueue);
+        // 新旧节点的开始索引同时 +1
         oldStartVnode = oldCh[++oldStartIdx];
         newStartVnode = newCh[++newStartIdx];
       } else if (sameVnode(oldEndVnode, newEndVnode)) {
+        // 如果 旧结束节点和新结束节点相同
+        // 表 旧结束节点和新结束节点
         patchVnode(oldEndVnode, newEndVnode, insertedVnodeQueue);
+        // 新旧节点的结束索引 -1
         oldEndVnode = oldCh[--oldEndIdx];
         newEndVnode = newCh[--newEndIdx];
       } else if (sameVnode(oldStartVnode, newEndVnode)) {
         // Vnode moved right
+        // 旧开始节点和新结束节点相同
+        // 比较 旧开始节点和新结束节点
         patchVnode(oldStartVnode, newEndVnode, insertedVnodeQueue);
+        // 将 旧开始节点插入到旧结束节点之后
         api.insertBefore(
           parentElm,
           oldStartVnode.elm!,
           api.nextSibling(oldEndVnode.elm!)
         );
+        // 旧开始索引 + 1，更新旧开始节点
         oldStartVnode = oldCh[++oldStartIdx];
+        // 新结束索引 -1，更新新结束节点
         newEndVnode = newCh[--newEndIdx];
       } else if (sameVnode(oldEndVnode, newStartVnode)) {
         // Vnode moved left
+        // 旧结束节点和新开始节点相同
         patchVnode(oldEndVnode, newStartVnode, insertedVnodeQueue);
+        // 将 旧结束点击插入到旧开始节点之前
         api.insertBefore(parentElm, oldEndVnode.elm!, oldStartVnode.elm!);
+        // 旧结束索引 -1，更新旧结束节点
         oldEndVnode = oldCh[--oldEndIdx];
+        // 新开始节点索引 +1，更新 新开始节点
         newStartVnode = newCh[++newStartIdx];
       } else {
+        // 第一次初始化
         if (oldKeyToIdx === undefined) {
+          // 遍历 oldCh 中 oldStartIdx 到 oldEndIdx 直接的项
+          // 并将这部分数组中 的 key 作为属性值，当前索引作为 value 存储起来，并赋值给 oldKeeyToIdx
           oldKeyToIdx = createKeyToOldIdx(oldCh, oldStartIdx, oldEndIdx);
         }
+
+        // 给 idxInOld 赋值，获取新开始节点，查看新开始节点的key在老节点中对应的索引
         idxInOld = oldKeyToIdx[newStartVnode.key as string];
+        // 如果 idxInOld 不存在，说明当前 key 在老节点中没有，判定为新节点
         if (isUndef(idxInOld)) {
           // New element
+          // 将此节点对应的 dom 插入到 旧开始节点之前
           api.insertBefore(
             parentElm,
             createElm(newStartVnode, insertedVnodeQueue),
             oldStartVnode.elm!
           );
         } else {
+          // 新节点中的 key 在老节点中存在
+
+          // 为 elmToMove 赋值为老节点中此 key 对应的索引的值
           elmToMove = oldCh[idxInOld];
+
+          // 比较老节点中此 key 对应的值和新开始节点的 sel 是否相同
+          // 不相同
           if (elmToMove.sel !== newStartVnode.sel) {
+            // 将 新开始节点对应的 dom 插入到 旧开始节点 dom 之前
             api.insertBefore(
               parentElm,
               createElm(newStartVnode, insertedVnodeQueue),
               oldStartVnode.elm!
             );
           } else {
+            // 比较 新开始节点和 key 在老节点中对应的值
             patchVnode(elmToMove, newStartVnode, insertedVnodeQueue);
+            // 将 老节点中 此 key 对应的索引位置设置为 undefined
             oldCh[idxInOld] = undefined as any;
+            // 将 老节点中此 key 对应的索引处的值插入到旧开始节点之前
             api.insertBefore(parentElm, elmToMove.elm!, oldStartVnode.elm!);
           }
         }
+        // 新开始节点索引 +1，更新新开始节点
         newStartVnode = newCh[++newStartIdx];
       }
     }
+
+    // 如果有一个数组没有被遍历完
+    // 旧开始节点索引 <= 旧结束节点索引 或者 新开始节点索引 <= 新结束节点索引
     if (oldStartIdx <= oldEndIdx || newStartIdx <= newEndIdx) {
+      // 如果旧节点已经遍历完
+      // 将剩余的新节点插入到旧节点中
       if (oldStartIdx > oldEndIdx) {
+        // 如果 新结束节点索引 + 1 在新节点中存在，则 before 赋值为 新结束节点索引 + 1 的 真实 dom 元素
         before = newCh[newEndIdx + 1] == null ? null : newCh[newEndIdx + 1].elm;
+        // 将 新节点中，从新节点开始索引到新节点结束索引之间的 vnode 依次插入到 before 之前
         addVnodes(
           parentElm,
           before,
@@ -480,13 +561,15 @@ export function init(modules: Array<Partial<Module>>, domApi?: DOMAPI) {
           insertedVnodeQueue
         );
       } else {
+        // 新节点遍历完了旧节点依然有没完成
+        // 将旧节点中 从旧开始节点到旧结束节点之间的元素移除
         removeVnodes(parentElm, oldCh, oldStartIdx, oldEndIdx);
       }
     }
   }
 
   /**
-   * 
+   * 比较新旧 vnode，更新新 vnode.elm 对应的元素
    * @param oldVnode
    * @param vnode 
    * @param insertedVnodeQueue 

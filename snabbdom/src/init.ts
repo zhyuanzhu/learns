@@ -485,39 +485,80 @@ export function init(modules: Array<Partial<Module>>, domApi?: DOMAPI) {
     }
   }
 
+  /**
+   * 
+   * @param oldVnode
+   * @param vnode 
+   * @param insertedVnodeQueue 
+   * @returns 
+   */
   function patchVnode(
     oldVnode: VNode,
     vnode: VNode,
     insertedVnodeQueue: VNodeQueue
   ) {
+
+    // 缓存用户从 data 中传入的 hook
     const hook = vnode.data?.hook;
+    // 如果 hook 传入了且有 prepatch 钩子函数，则调用 prepatch 钩子函数
     hook?.prepatch?.(oldVnode, vnode);
+
+    // 缓存 elm, 为 vnode 的 elm 也重新赋值，为 oldVnode 中的 dom 元素
     const elm = (vnode.elm = oldVnode.elm)!;
+
+    // 获取 oldVnode.children 中的 children
     const oldCh = oldVnode.children as VNode[];
+
+    // 获取  vnode 的 children
     const ch = vnode.children as VNode[];
+
+    // 如果 新旧节点相等，直接返回
     if (oldVnode === vnode) return;
+
+    // 如果新 vnode 传入了 data
     if (vnode.data !== undefined) {
+      // 遍历 钩子函数对象的 update 钩子函数队列
       for (let i = 0; i < cbs.update.length; ++i)
+      // 执行每一个 update 钩子函数
         cbs.update[i](oldVnode, vnode);
+      
+      // 如果 vnode 的 data 中传入了 hook，且有 update 钩子函数，则调用
       vnode.data.hook?.update?.(oldVnode, vnode);
     }
+
+    // 开始对比新旧节点
+    // 如果 vnode.text 没有定义，则 vnode.children 应该存在
     if (isUndef(vnode.text)) {
+      // 如果 oldVnode.children && vnode.children
       if (isDef(oldCh) && isDef(ch)) {
+        // 如果 oldVnode.children 和 vnode.children 不相等
+        // 调用 updateChildren
         if (oldCh !== ch) updateChildren(elm, oldCh, ch, insertedVnodeQueue);
-      } else if (isDef(ch)) {
+      } else if (isDef(ch)) {      // vnode.children 存在
+        // 如果 oldVnode.text 存在，将 elm 的内容清空
         if (isDef(oldVnode.text)) api.setTextContent(elm, "");
+        // 在 elm 下新增加节点，增加的节点是 vnode.children 的所有。即把 vnode.children 新增到 elm 下
         addVnodes(elm, null, ch, 0, ch.length - 1, insertedVnodeQueue);
-      } else if (isDef(oldCh)) {
+      } else if (isDef(oldCh)) {    // oldVnode.children 存在
+        // 移除 elm 下面的 oldVnode.children
         removeVnodes(elm, oldCh, 0, oldCh.length - 1);
-      } else if (isDef(oldVnode.text)) {
+      } else if (isDef(oldVnode.text)) {     // oldVnode.text 存在
+        // 将 elm 即 vnode.elm 的内容设置为 空字符串
         api.setTextContent(elm, "");
       }
+    // 如果 oldVnode 和 vnode 的 text 不相同，
     } else if (oldVnode.text !== vnode.text) {
+      // 如果 oldVnode 的 children 存在
       if (isDef(oldCh)) {
+        // 移除 elm 的子元素 oldCh，从 0 到 oldCh.length - 1
+        // 即移除 elm 中的元素
         removeVnodes(elm, oldCh, 0, oldCh.length - 1);
       }
+      // 设置 elm 的文本内容为 vnode.text
       api.setTextContent(elm, vnode.text!);
     }
+
+    // 如果 hook 存在且有 postpatch 钩子函数，则调用
     hook?.postpatch?.(oldVnode, vnode);
   }
   

@@ -88,6 +88,7 @@ function tagName(elm: Element): string {
   return elm.tagName;
 }
 
+// 设置 node 的文本内容为 text
 function setTextContent(node: Node, text: string | null): void {
   node.textContent = text;
 }
